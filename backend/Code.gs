@@ -18,7 +18,9 @@
  */
 
 const PASSCODE = '';            // set this in your Sheet's copy only
+const SHEET_ID = '';            // blank = the Sheet this script is attached to
 const TZ = 'America/Chicago';
+function book() { return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActive(); }
 
 const HEADERS = {
   People:   ['id', 'name', 'schedule', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'order'],
@@ -34,7 +36,7 @@ const WEEK_COLS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 // ---------------------------------------------------------------- setup
 
 function setup() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = book();
   ss.setSpreadsheetTimeZone(TZ);
   Object.keys(HEADERS).forEach(function (name) {
     let sh = ss.getSheetByName(name);
@@ -157,7 +159,7 @@ function setCount(req) {
   upsert('Counts', keys, {letouts: n, updated: stamp()});
 }
 
-function sheet(name) { return SpreadsheetApp.getActive().getSheetByName(name); }
+function sheet(name) { return book().getSheetByName(name); }
 function cellStr(v) {
   if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
   return String(v === null || v === undefined ? '' : v).trim();
