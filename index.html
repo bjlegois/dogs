@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Let-Outs</title>
+<meta name="description" content="Bubba and Harvey's let-out board">
+<meta name="theme-color" content="#1b5a46">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Let-Outs">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --paper:#eef3f0; --card:#ffffff; --ink:#16211c; --muted:#5a6a63; --line:#d6e0db; --soft:#e5ece8;
+  --accent:#1b5a46; --accent-ink:#ffffff;
+  --bad:#c0391f; --bad-soft:#fbe6e0; --warn:#9a6200; --warn-soft:#fbf0d9; --good:#2a7748; --good-soft:#e0f1e6;
+  --bubba:#2462c8; --harvey:#b0560f;
+  --f-display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0f1513; --card:#172019; --ink:#e3ebe6; --muted:#95a59d; --line:#29342f; --soft:#1f2924;
+    --accent:#68c3a2; --accent-ink:#0b1a14;
+    --bad:#ff7b61; --bad-soft:#3a1c15; --warn:#f0b54a; --warn-soft:#33270f; --good:#60c78a; --good-soft:#15301f;
+    --bubba:#78a8ff; --harvey:#f2a35e;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);margin:0;letter-spacing:-0.01em;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* lock + who */
+.center{min-height:80vh;display:flex;flex-direction:column;justify-content:center;gap:18px;padding-block:32px}
+.mark{width:64px;height:64px;border-radius:18px;background:var(--accent);display:grid;place-items:center}
+.mark svg{width:38px;height:38px;fill:var(--accent-ink)}
+.center h1{font-size:34px}
+.center p{margin:0;color:var(--muted)}
+.lockform{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.lockform label{font-weight:600;font-size:14px;color:var(--muted)}
+.lockform input{padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:18px}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);padding:13px 18px;border-radius:12px;font-weight:700;font-size:16px}
+.btn:disabled{opacity:.55}
+.btn.small{padding:8px 14px;font-size:14px;border-radius:10px}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.quiet{background:var(--soft);color:var(--ink)}
+.link{border:0;background:none;padding:6px 2px;color:var(--muted);text-decoration:underline;font-size:14px}
+.err{color:var(--bad);font-weight:600;font-size:14px;margin:0}
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.people button{padding:18px 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-weight:700;font-size:18px;text-align:left}
+.people button:active{border-color:var(--accent)}
+
+/* top bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:14px 10px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .mark{width:34px;height:34px;border-radius:10px}
+.brand .mark svg{width:20px;height:20px}
+.brand h1{font-size:22px}
+.who{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px}
+.who::after{content:"";width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px)}
+.sync{font-size:12px;color:var(--muted);min-height:16px;text-align:right}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--soft);border-radius:14px;margin-bottom:8px}
+.seg button{border:0;background:transparent;border-radius:11px;padding:8px 6px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px}
+.seg button small{font-weight:500;font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.tabs{display:flex;gap:18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs button{border:0;background:none;padding:10px 0;font-weight:700;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+/* alerts */
+.alert{border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:600}
+.alert.bad{background:var(--bad-soft);color:var(--bad)}
+.alert.warn{background:var(--warn-soft);color:var(--warn)}
+.alert.good{background:var(--good-soft);color:var(--good)}
+
+.mine{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px}
+.mine h2{font-size:16px;margin-bottom:6px}
+.mine ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mine li{display:flex;gap:10px;align-items:baseline;font-size:15px}
+.mine li b{min-width:92px}
+
+/* days */
+.days{display:flex;flex-direction:column;gap:12px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
+.day.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.dayhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.dayhead h2{font-size:19px}
+.dayhead h2 span{color:var(--muted);font-weight:600}
+.tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.tag.today{background:var(--accent);color:var(--accent-ink)}
+.dog{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.dog:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.doghead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
+.doghead strong{font-size:16px}
+.doghead .sub{color:var(--muted);font-size:13px}
+.doghead .link{margin-left:auto;font-size:13px}
+.note{margin:6px 0 0 19px;font-size:14px;color:var(--muted)}
+.note.warn{color:var(--warn);font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 0 19px;padding:10px 12px;border-radius:12px;background:var(--soft)}
+.slot.open{background:var(--bad-soft)}
+.slot .what{min-width:0}
+.slot .what b{display:block;font-size:15px}
+.slot.open .what b{color:var(--bad)}
+.slot .what small{display:block;color:var(--muted);font-size:13px}
+.slot .acts{display:flex;align-items:center;gap:6px;flex:none}
+.slot.mine{background:var(--good-soft)}
+.slot.mine .what b{color:var(--good)}
+.stepper{display:flex;align-items:center;gap:8px;margin:8px 0 0 19px;flex-wrap:wrap}
+.stepper .n{font-size:20px;font-weight:700;min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
+.stepper .sq{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:20px;font-weight:700}
+details.past{margin-bottom:12px}
+details.past summary{cursor:pointer;color:var(--muted);font-weight:600;padding:6px 0}
+details.past .days{margin-top:8px;opacity:.7}
+
+/* hours */
+.intro{color:var(--muted);font-size:14px;margin:0 0 12px}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.pcard h2{font-size:19px}
+.pcard .sub{color:var(--muted);font-size:13px;margin:2px 0 10px}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.hrow:first-of-type{border-top:0}
+.hrow label{font-weight:600}
+.hrow label span{color:var(--muted);font-weight:500}
+.hrow select{padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);min-width:150px;max-width:60%}
+.hrow select.unset{color:var(--warn);font-weight:600;border-color:var(--warn)}
+
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);z-index:5}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+<script src="config.js"></script>
+<script>
+(function(){
+  'use strict';
+  const API = window.LETOUT_API || '';
+  const $app = document.getElementById('app'), $toast = document.getElementById('toast');
+  const PAW = '<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="18" cy="22" rx="6" ry="8"/><ellipse cx="31" cy="15" rx="6" ry="8"/><ellipse cx="44" cy="20" rx="6" ry="8"/><ellipse cx="51" cy="33" rx="5.5" ry="7"/><path d="M32 30c-9 0-17 10-17 18 0 6 5 8 10 7 3-.6 4.6-2 7-2s4 1.4 7 2c5 1 10-1 10-7 0-8-8-18-17-18z"/></svg>';
+  const DOGC = {bubba: 'var(--bubba)', harvey: 'var(--harvey)'};
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function ls(k, v){ try { if (v === undefined) return localStorage.getItem('letout.' + k); if (v === null) localStorage.removeItem('letout.' + k); else localStorage.setItem('letout.' + k, v); } catch (e) { return null; } }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pd(s){ const p = s.split('-'); return new Date(Date.UTC(+p[0], +p[1]-1, +p[2])); }
+  function md(s){ const d = pd(s); return MON[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+  function range(mon){ const a = pd(mon), b = pd(mon); b.setUTCDate(b.getUTCDate() + 6); return a.getUTCMonth() === b.getUTCMonth() ? MON[a.getUTCMonth()] + ' ' + a.getUTCDate() + '–' + b.getUTCDate() : md(mon) + ' – ' + MON[b.getUTCMonth()] + ' ' + b.getUTCDate(); }
+  function ord(n){ return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : n + 'th'; }
+  function hrsLabel(h){ if (h === 0) return 'Off'; const w = Math.floor(h), m = Math.round((h - w) * 60); return m ? w + 'h ' + m + 'm' : w + ' hours'; }
+
+  let cached = null; try { cached = JSON.parse(ls('cache') || 'null'); } catch (e) {}
+  const S = {pass: ls('pass'), me: ls('me'), data: cached, week: 0, tab: 'letouts', saving: 0, lockErr: '', confirm: null, edit: null, loading: false};
+
+  function toast(msg){ $toast.textContent = msg; $toast.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { $toast.hidden = true; }, 3200); }
+  const name = id => { const p = S.data && S.data.people.find(x => x.id === id); return p ? p.name : id; };
+  const dogOf = id => S.data.dogs.find(d => d.id === id) || {id, name: id, house: ''};
+
+  // ---------- server ----------
+  let chain = Promise.resolve();
+  function api(action, payload){
+    const run = () => fetch(API, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({action, passcode: S.pass}, payload || {}))})
+      .then(r => r.json()).then(j => { if (!j.ok) throw j; return j.data; });
+    const p = chain.then(run, run);
+    chain = p.catch(() => {});
+    return p;
+  }
+  function setData(d){ S.data = d; try { ls('cache', JSON.stringify(d)); } catch (e) {} }
+  function load(quiet){
+    if (!API || !S.pass || S.loading) return;
+    S.loading = true; if (!quiet) render();
+    api('load').then(d => { setData(d); S.loading = false; render(); })
+      .catch(e => { S.loading = false; if (e && e.error === 'passcode'){ S.pass = null; ls('pass', null); S.lockErr = 'That passcode didn’t work. Try again.'; } else if (!quiet) toast('Couldn’t reach the schedule. Check your connection.'); render(); });
+  }
+  function save(action, payload, okMsg){
+    S.saving++; syncLine();
+    return api(action, payload).then(d => { setData(d); if (okMsg) toast(okMsg); })
+      .catch(e => { toast(e && e.error === 'passcode' ? 'The passcode changed. Enter the new one.' : 'Couldn’t save that. Try again.'); if (e && e.error === 'passcode'){ S.pass = null; ls('pass', null); } load(true); })
+      .finally(() => { S.saving--; render(); });
+  }
+
+  // ---------- views ----------
+  function render(){
+    if (!API){ $app.innerHTML = `<div class="center"><div class="mark">${PAW}</div><h1>Almost ready</h1><p>The app isn’t connected to its Google Sheet yet. Once the Sheet’s web app link is added, this page will open the let-out board.</p></div>`; return; }
+    if (!S.pass) return lockView();
+    if (!S.data) { $app.innerHTML = `<div class="center"><div class="mark">${PAW}</div><h1>Let-Outs</h1><p>Loading the schedule…</p></div>`; return; }
+    if (!S.me || !S.data.people.some(p => p.id === S.me)) return whoView();
+    mainView();
+  }
+
+  function lockView(){
+    $app.innerHTML = `<div class="center">
+      <div class="mark">${PAW}</div>
+      <div><h1>Let-Outs</h1><p>Bubba and Harvey’s let-out board</p></div>
+      <form class="lockform" id="lockform">
+        <label for="pass">Family passcode</label>
+        <input id="pass" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+        <button class="btn" type="submit">Open</button>
+        ${S.lockErr ? `<p class="err">${esc(S.lockErr)}</p>` : ''}
+      </form></div>`;
+  }
+
+  function whoView(){
+    $app.innerHTML = `<div class="center">
+      <div><h1>Who’s this?</h1><p>Pick your name. This phone will remember it.</p></div>
+      <div class="people">${S.data.people.map(p => `<button data-act="me" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>
+      <button class="link" data-act="forget">Use a different passcode</button></div>`;
+  }
+
+  function syncLine(){ const el = document.getElementById('sync'); if (el) el.textContent = S.saving ? 'Saving…' : (S.loading ? 'Updating…' : ''); }
+
+  function mainView(){
+    const D = S.data, W = D.weeks[S.week] || D.weeks[0];
+    const head = `<div class="bar"><div class="brand"><div class="mark">${PAW}</div><h1>Let-Outs</h1></div>
+        <div><button class="who" data-act="switch" aria-label="Switch person">${esc(name(S.me))}</button><div class="sync" id="sync"></div></div></div>
+      <div class="seg">${D.weeks.map((w, i) => `<button data-act="week" data-i="${i}" aria-pressed="${S.week === i}">${i ? 'Next week' : 'This week'}<small>${esc(range(w.monday))}</small></button>`).join('')}</div>
+      <nav class="tabs" role="tablist"><button role="tab" data-act="tab" data-tab="letouts" aria-selected="${S.tab === 'letouts'}">Let-outs</button><button role="tab" data-act="tab" data-tab="hours" aria-selected="${S.tab === 'hours'}">Hours</button></nav>`;
+    $app.innerHTML = head + (S.tab === 'hours' ? hoursView(W) : letoutsView(W));
+    syncLine();
+  }
+
+  function letoutsView(W){
+    const today = S.data.today;
+    const upcoming = W.days.filter(d => d.date >= today), past = W.days.filter(d => d.date < today);
+    let open = 0; const unknown = {};
+    upcoming.forEach(d => d.dogs.forEach(dd => { dd.slots.forEach(s => { if (!s.claimedBy) open++; }); if (dd.state === 'unknown') unknown[dd.reason] = (unknown[dd.reason] || 0) + 1; }));
+    let alerts = '';
+    if (open) alerts += `<div class="alert bad"><span>${open} let-out${open === 1 ? '' : 's'} still need${open === 1 ? 's' : ''} someone</span></div>`;
+    Object.keys(unknown).forEach(r => { alerts += `<div class="alert warn"><span>${esc(r)} for ${unknown[r]} day${unknown[r] === 1 ? '' : 's'}</span><button class="btn small" data-act="tab" data-tab="hours">Enter hours</button></div>`; });
+    if (!open && !Object.keys(unknown).length && upcoming.some(d => d.dogs.some(dd => dd.slots.length))) alerts += `<div class="alert good"><span>Every let-out is claimed</span></div>`;
+
+    const mine = [];
+    upcoming.forEach(d => d.dogs.forEach(dd => dd.slots.forEach(s => { if (s.claimedBy === S.me) mine.push({d, dd, s}); })));
+    const mineBox = mine.length ? `<div class="mine"><h2>Your let-outs</h2><ul>${mine.map(x => `<li><b>${esc(x.d.day + ' ' + md(x.d.date))}</b><span>${esc(dogOf(x.dd.dog).name)} at ${esc(dogOf(x.dd.dog).house)}${x.dd.needed > 1 ? ' · ' + ord(x.s.n) : ''}</span></li>`).join('')}</ul></div>` : '';
+
+    const pastBox = past.length ? `<details class="past"><summary>Earlier this week (${past.length} day${past.length === 1 ? '' : 's'})</summary><div class="days">${past.map(d => dayCard(d, true)).join('')}</div></details>` : '';
+    return alerts + mineBox + pastBox + `<div class="days">${upcoming.map(d => dayCard(d, false)).join('')}</div>`;
+  }
+
+  function dayCard(d, isPast){
+    const isToday = d.date === S.data.today;
+    return `<section class="day${isToday ? ' today' : ''}">
+      <div class="dayhead"><h2>${esc(d.day)} <span>${esc(md(d.date))}</span></h2>${isToday ? '<span class="tag today">Today</span>' : ''}</div>
+      ${d.dogs.map(dd => dogBlock(d, dd, isPast)).join('')}
+    </section>`;
+  }
+
+  function dogBlock(d, dd, isPast){
+    const dog = dogOf(dd.dog), key = d.date + '|' + dd.dog;
+    const c = DOGC[dd.dog] || 'var(--accent)';
+    const editing = S.edit && S.edit.key === key;
+    let body = '';
+    if (dd.state === 'unknown') body = `<div class="note warn"><span>${esc(dd.reason)}</span>${isPast ? '' : '<button class="btn small" data-act="tab" data-tab="hours">Enter hours</button>'}</div>`;
+    else if (dd.state === 'home' || dd.state === 'setup' || !dd.needed) body = `<p class="note">No let-out needed${dd.reason ? ' · ' + esc(dd.reason) : ''}</p>`;
+    else body = dd.slots.map(s => slotRow(d, dd, s, isPast)).join('');
+    const stepper = editing ? `<div class="stepper"><button class="sq" data-act="cnt" data-d="-1" aria-label="One fewer">−</button><span class="n">${S.edit.n}</span><button class="sq" data-act="cnt" data-d="1" aria-label="One more">+</button>
+        <button class="btn small" data-act="cnt-save">Save</button>${dd.overridden ? '<button class="btn small quiet" data-act="cnt-reset">Use the usual rule</button>' : ''}<button class="link" data-act="cnt-cancel">Cancel</button></div>` : '';
+    const sub = dd.state === 'needs' && dd.needed ? `${dd.needed} let-out${dd.needed === 1 ? '' : 's'}${dd.reason ? ' · ' + esc(dd.reason) : ''}` : esc(dog.house);
+    return `<div class="dog" style="--c:${c}">
+      <div class="doghead"><span class="dot"></span><strong>${esc(dog.name)}</strong><span class="sub">${sub}</span>${isPast || editing ? '' : `<button class="link" data-act="cnt-open" data-key="${esc(key)}" data-n="${dd.needed || 0}">Change</button>`}</div>
+      ${body}${stepper}
+    </div>`;
+  }
+
+  function slotRow(d, dd, s, isPast){
+    const label = dd.needed > 1 ? ord(s.n) + ' let-out' : 'Let-out';
+    const ck = d.date + '|' + dd.dog + '|' + s.n;
+    const attrs = `data-date="${esc(d.date)}" data-dog="${esc(dd.dog)}" data-slot="${s.n}"`;
+    if (!s.claimedBy){
+      const free = s.free.filter(id => id !== S.me).map(name);
+      const meFree = s.free.includes(S.me);
+      return `<div class="slot open"><div class="what"><b>${label} · needs someone</b><small>${free.length || meFree ? 'Free: ' + esc((meFree ? ['You'] : []).concat(free).join(', ')) : 'Nobody listed as free'}</small></div>
+        ${isPast ? '' : `<div class="acts"><button class="btn small" data-act="claim" ${attrs}>I’ll take it</button></div>`}</div>`;
+    }
+    if (s.claimedBy === S.me){
+      return `<div class="slot mine"><div class="what"><b>${label} · you</b><small>${esc(dogOf(dd.dog).house)}</small></div>
+        ${isPast ? '' : `<div class="acts"><button class="btn small quiet" data-act="unclaim" ${attrs}>Can’t do it</button></div>`}</div>`;
+    }
+    if (S.confirm === ck){
+      return `<div class="slot"><div class="what"><b>Remove ${esc(name(s.claimedBy))}’s claim?</b><small>It will show as needing someone.</small></div>
+        <div class="acts"><button class="btn small" data-act="unclaim" ${attrs}>Remove</button><button class="link" data-act="keep">Keep</button></div></div>`;
+    }
+    return `<div class="slot"><div class="what"><b>${label} · ${esc(name(s.claimedBy))}</b></div>
+      ${isPast ? '' : `<div class="acts"><button class="link" data-act="ask-remove" data-key="${esc(ck)}">Remove</button></div>`}</div>`;
+  }
+
+  function hoursView(W){
+    const ppl = S.data.people.filter(p => p.schedule === 'fixed' || p.schedule === 'weekly');
+    ppl.sort((a, b) => (b.id === S.me) - (a.id === S.me));
+    const opts = Array.from({length: 16}, (_, i) => i + 1);
+    const cards = ppl.map(p => {
+      const rows = W.days.map(d => {
+        const h = d.hours[p.id], u = d.usual[p.id];
+        let val;
+        if (p.schedule === 'fixed') val = (h === u) ? '' : String(h);
+        else val = (h === null || h === undefined) ? '' : String(h);
+        const first = p.schedule === 'fixed' ? `Usual · ${u ? hrsLabel(u) : 'off'}` : 'Not entered';
+        const extra = (val !== '' && val !== '0' && !opts.includes(Number(val))) ? [Number(val)] : [];
+        const list = opts.concat(extra).sort((a, b) => a - b);
+        const id = `h-${p.id}-${d.date}`;
+        return `<div class="hrow"><label for="${esc(id)}">${esc(d.day)} <span>${esc(md(d.date))}</span></label>
+          <select id="${esc(id)}" class="${p.schedule === 'weekly' && val === '' ? 'unset' : ''}" data-act="hours" data-person="${esc(p.id)}" data-date="${esc(d.date)}">
+            <option value=""${val === '' ? ' selected' : ''}>${esc(first)}</option>
+            <option value="0"${val === '0' ? ' selected' : ''}>Off</option>
+            ${list.map(n => `<option value="${n}"${val === String(n) ? ' selected' : ''}>${esc(hrsLabel(n))}</option>`).join('')}
+          </select></div>`;
+      }).join('');
+      const sub = p.schedule === 'fixed' ? 'Usual week fills in on its own. Change a day only when it’s different.' : 'Enter each day you work, or Off.';
+      return `<div class="pcard"><h2>${esc(p.id === S.me ? 'Your hours' : p.name)}</h2><p class="sub">${esc(sub)}</p>${rows}</div>`;
+    }).join('');
+    return `<p class="intro">A dog needs let-outs only on days everyone it lives with is working.</p>${cards}`;
+  }
+
+  // ---------- events ----------
+  function findSlot(date, dog, slot){
+    for (const w of S.data.weeks) for (const d of w.days) if (d.date === date){ const dd = d.dogs.find(x => x.dog === dog); return dd && dd.slots.find(s => s.n === slot); }
+    return null;
+  }
+
+  $app.addEventListener('submit', e => {
+    if (e.target.id !== 'lockform') return;
+    e.preventDefault();
+    const v = document.getElementById('pass').value.trim();
+    if (!v) return;
+    S.pass = v; S.lockErr = ''; ls('pass', v); S.data = null; load();
+  });
+
+  $app.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || b.tagName === 'SELECT') return;
+    const act = b.dataset.act;
+    if (act === 'me'){ S.me = b.dataset.id; ls('me', S.me); S.tab = 'letouts'; render(); window.scrollTo(0, 0); }
+    else if (act === 'switch'){ S.me = null; ls('me', null); render(); }
+    else if (act === 'forget'){ S.pass = null; ls('pass', null); S.data = null; ls('cache', null); render(); }
+    else if (act === 'week'){ S.week = +b.dataset.i; S.edit = null; S.confirm = null; render(); }
+    else if (act === 'tab'){ S.tab = b.dataset.tab; S.edit = null; S.confirm = null; render(); window.scrollTo(0, 0); }
+    else if (act === 'claim' || act === 'unclaim'){
+      const date = b.dataset.date, dog = b.dataset.dog, slot = +b.dataset.slot;
+      const s = findSlot(date, dog, slot); const person = act === 'claim' ? S.me : null;
+      if (s) s.claimedBy = person;
+      S.confirm = null; render();
+      save('claim', {date, dog, slot, person}, act === 'claim' ? 'Claimed. Thank you!' : 'Removed. It shows as needing someone.');
+    }
+    else if (act === 'ask-remove'){ S.confirm = b.dataset.key; render(); }
+    else if (act === 'keep'){ S.confirm = null; render(); }
+    else if (act === 'cnt-open'){ S.edit = {key: b.dataset.key, n: +b.dataset.n}; render(); }
+    else if (act === 'cnt'){ if (S.edit){ S.edit.n = Math.max(0, Math.min(6, S.edit.n + (+b.dataset.d))); render(); } }
+    else if (act === 'cnt-cancel'){ S.edit = null; render(); }
+    else if (act === 'cnt-save' || act === 'cnt-reset'){
+      if (!S.edit) return;
+      const [date, dog] = S.edit.key.split('|'); const letouts = act === 'cnt-reset' ? null : S.edit.n;
+      S.edit = null; render();
+      save('setCount', {date, dog, letouts}, act === 'cnt-reset' ? 'Back to the usual rule.' : 'Let-out count saved.');
+    }
+  });
+
+  $app.addEventListener('change', e => {
+    const el = e.target; if (el.dataset.act !== 'hours') return;
+    const v = el.value;
+    save('setHours', {person: el.dataset.person, date: el.dataset.date, hours: v === '' ? null : Number(v)});
+  });
+
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(true); });
+  setInterval(() => { if (document.visibilityState === 'visible' && !S.saving && !S.edit) load(true); }, 60000);
+
+  render();
+  if (S.pass) load(!!S.data);
+})();
+</script>
+</body>
+</html>
