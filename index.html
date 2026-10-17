@@ -305,8 +305,10 @@ details.past .days{margin-top:8px;opacity:.7}
   function hoursView(W){
     const ppl = S.data.people.filter(p => p.schedule === 'fixed' || p.schedule === 'weekly');
     ppl.sort((a, b) => (b.id === S.me) - (a.id === S.me));
-    const opts = Array.from({length: 16}, (_, i) => i + 1);
+    const SHIFTS = {weekly: [8, 12], fixed: []};       // Brynn: 8 or 12. Bryce & McKayla: usual or off.
+    const shiftLabel = n => Number.isInteger(n) ? n + '-hour shift' : hrsLabel(n);
     const cards = ppl.map(p => {
+      const opts = SHIFTS[p.schedule] || [];
       const rows = W.days.map(d => {
         const h = d.hours[p.id], u = d.usual[p.id];
         let val;
@@ -320,10 +322,10 @@ details.past .days{margin-top:8px;opacity:.7}
           <select id="${esc(id)}" class="${p.schedule === 'weekly' && val === '' ? 'unset' : ''}" data-act="hours" data-person="${esc(p.id)}" data-date="${esc(d.date)}">
             <option value=""${val === '' ? ' selected' : ''}>${esc(first)}</option>
             <option value="0"${val === '0' ? ' selected' : ''}>Off</option>
-            ${list.map(n => `<option value="${n}"${val === String(n) ? ' selected' : ''}>${esc(hrsLabel(n))}</option>`).join('')}
+            ${list.map(n => `<option value="${n}"${val === String(n) ? ' selected' : ''}>${esc(shiftLabel(n))}</option>`).join('')}
           </select></div>`;
       }).join('');
-      const sub = p.schedule === 'fixed' ? 'Usual week fills in on its own. Change a day only when it’s different.' : 'Enter each day you work, or Off.';
+      const sub = p.schedule === 'fixed' ? 'Usual week fills in on its own. Change a day only when you’re off.' : 'Pick 8 or 12 hours for each day you work, or Off. A 12-hour shift means Harvey gets 2 let-outs.';
       return `<div class="pcard"><h2>${esc(p.id === S.me ? 'Your hours' : p.name)}</h2><p class="sub">${esc(sub)}</p>${rows}</div>`;
     }).join('');
     return `<p class="intro">A dog needs let-outs only on days everyone it lives with is working.</p>${cards}`;
