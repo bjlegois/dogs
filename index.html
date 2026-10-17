@@ -120,6 +120,8 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .slot.open .what b{color:var(--bad)}
 .slot .what small{display:block;color:var(--muted);font-size:13px}
 .slot .acts{display:flex;align-items:center;gap:6px;flex:none}
+.slot .what .link{display:inline-block;padding:5px 0 0;font-size:13px;text-align:left}
+.slot .what .link.dc{color:var(--accent);font-weight:700;text-decoration:none}
 .slot.mine{background:var(--good-soft)}
 .slot.mine .what b{color:var(--good)}
 .stepper{display:flex;align-items:center;gap:8px;margin:8px 0 0 19px;flex-wrap:wrap}
@@ -241,15 +243,23 @@ details.past .days{margin-top:8px;opacity:.7}
     const today = S.data.today;
     const upcoming = W.days.filter(d => d.date >= today), past = W.days.filter(d => d.date < today);
     let open = 0; const unknown = {};
-    upcoming.forEach(d => d.dogs.forEach(dd => { dd.slots.forEach(s => { if (!s.claimedBy) open++; }); if (dd.state === 'unknown') unknown[dd.reason] = (unknown[dd.reason] || 0) + 1; }));
+    upcoming.forEach(d => d.dogs.forEach(dd => {
+      dd.slots.forEach(s => { if (!s.claimedBy) open++; });
+      if (dd.daycare && !dd.daycare.pickup.claimedBy) open++;
+      if (dd.state === 'unknown') unknown[dd.reason] = (unknown[dd.reason] || 0) + 1;
+    }));
     let alerts = '';
     if (open) alerts += `<div class="alert bad"><span>${open} let-out${open === 1 ? '' : 's'} still need${open === 1 ? 's' : ''} someone</span></div>`;
     Object.keys(unknown).forEach(r => { alerts += `<div class="alert warn"><span>${esc(r)} for ${unknown[r]} day${unknown[r] === 1 ? '' : 's'}</span><button class="btn small" data-act="tab" data-tab="hours">Enter hours</button></div>`; });
     if (!open && !Object.keys(unknown).length && upcoming.some(d => d.dogs.some(dd => dd.slots.length))) alerts += `<div class="alert good"><span>Every let-out is claimed</span></div>`;
 
     const mine = [];
-    upcoming.forEach(d => d.dogs.forEach(dd => dd.slots.forEach(s => { if (s.claimedBy === S.me) mine.push({d, dd, s}); })));
-    const mineBox = mine.length ? `<div class="mine"><h2>Your let-outs</h2><ul>${mine.map(x => `<li><b>${esc(x.d.day + ' ' + md(x.d.date))}</b><span>${esc(dogOf(x.dd.dog).name)} at ${esc(dogOf(x.dd.dog).house)}${x.dd.needed > 1 ? ' · ' + ord(x.s.n) : ''}</span></li>`).join('')}</ul></div>` : '';
+    upcoming.forEach(d => d.dogs.forEach(dd => {
+      const dog = dogOf(dd.dog);
+      dd.slots.forEach(s => { if (s.claimedBy === S.me) mine.push({d, text: `${dog.name} at ${dog.house}${dd.slots.length > 1 ? ' · ' + ord(s.n) : ''}${s.daycare ? ' · drop at day care' : ''}`}); });
+      if (dd.daycare && dd.daycare.pickup.claimedBy === S.me) mine.push({d, text: `Pick up ${dog.name} from day care`});
+    }));
+    const mineBox = mine.length ? `<div class="mine"><h2>Your let-outs</h2><ul>${mine.map(x => `<li><b>${esc(x.d.day + ' ' + md(x.d.date))}</b><span>${esc(x.text)}</span></li>`).join('')}</ul></div>` : '';
 
     const pastBox = past.length ? `<details class="past"><summary>Earlier this week (${past.length} day${past.length === 1 ? '' : 's'})</summary><div class="days">${past.map(d => dayCard(d, true)).join('')}</div></details>` : '';
     return alerts + mineBox + pastBox + `<div class="days">${upcoming.map(d => dayCard(d, false)).join('')}</div>`;
@@ -270,10 +280,11 @@ details.past .days{margin-top:8px;opacity:.7}
     let body = '';
     if (dd.state === 'unknown') body = `<div class="note warn"><span>${esc(dd.reason)}</span>${isPast ? '' : '<button class="btn small" data-act="tab" data-tab="hours">Enter hours</button>'}</div>`;
     else if (dd.state === 'home' || dd.state === 'setup' || !dd.needed) body = `<p class="note">No let-out needed${dd.reason ? ' · ' + esc(dd.reason) : ''}</p>`;
-    else body = dd.slots.map(s => slotRow(d, dd, s, isPast)).join('');
+    else body = dd.slots.map(s => slotRow(d, dd, s, isPast)).join('') + daycareBlock(d, dd, isPast);
     const stepper = editing ? `<div class="stepper"><button class="sq" data-act="cnt" data-d="-1" aria-label="One fewer">−</button><span class="n">${S.edit.n}</span><button class="sq" data-act="cnt" data-d="1" aria-label="One more">+</button>
         <button class="btn small" data-act="cnt-save">Save</button>${dd.overridden ? '<button class="btn small quiet" data-act="cnt-reset">Use the usual rule</button>' : ''}<button class="link" data-act="cnt-cancel">Cancel</button></div>` : '';
-    const sub = dd.state === 'needs' && dd.needed ? `${dd.needed} let-out${dd.needed === 1 ? '' : 's'}${dd.reason ? ' · ' + esc(dd.reason) : ''}` : esc(dog.house);
+    const sub = dd.daycare ? `${dd.slots.length} let-out${dd.slots.length === 1 ? '' : 's'} + day care`
+      : dd.state === 'needs' && dd.needed ? `${dd.needed} let-out${dd.needed === 1 ? '' : 's'}${dd.reason ? ' · ' + esc(dd.reason) : ''}` : esc(dog.house);
     return `<div class="dog" style="--c:${c}">
       <div class="doghead"><span class="dot"></span><strong>${esc(dog.name)}</strong><span class="sub">${sub}</span>${isPast || editing ? '' : `<button class="link" data-act="cnt-open" data-key="${esc(key)}" data-n="${dd.needed || 0}">Change</button>`}</div>
       ${body}${stepper}
@@ -290,16 +301,45 @@ details.past .days{margin-top:8px;opacity:.7}
       return `<div class="slot open"><div class="what"><b>${label} · needs someone</b><small>${free.length || meFree ? 'Free: ' + esc((meFree ? ['You'] : []).concat(free).join(', ')) : 'Nobody listed as free'}</small></div>
         ${isPast ? '' : `<div class="acts"><button class="btn small" data-act="claim" ${attrs}>I’ll take it</button></div>`}</div>`;
     }
+    const dcLabel = s.daycare ? ' + day care drop-off' : '';
     if (s.claimedBy === S.me){
-      return `<div class="slot mine"><div class="what"><b>${label} · you</b><small>${esc(dogOf(dd.dog).house)}</small></div>
+      const dcLink = isPast ? '' : s.daycare
+        ? `<button class="link" data-act="dc-off" ${attrs}>Not doing day care</button>`
+        : dd.daycare ? '' : `<button class="link dc" data-act="dc-on" ${attrs}>+ Dropping at day care too</button>`;
+      return `<div class="slot mine"><div class="what"><b>${label}${dcLabel} · you</b><small>${esc(dogOf(dd.dog).house)}</small>${dcLink}</div>
         ${isPast ? '' : `<div class="acts"><button class="btn small quiet" data-act="unclaim" ${attrs}>Can’t do it</button></div>`}</div>`;
     }
     if (S.confirm === ck){
-      return `<div class="slot"><div class="what"><b>Remove ${esc(name(s.claimedBy))}’s claim?</b><small>It will show as needing someone.</small></div>
+      return `<div class="slot"><div class="what"><b>Remove ${esc(name(s.claimedBy))}’s claim?</b><small>It will show as needing someone.${s.daycare ? ' The day care plan is cleared too.' : ''}</small></div>
         <div class="acts"><button class="btn small" data-act="unclaim" ${attrs}>Remove</button><button class="link" data-act="keep">Keep</button></div></div>`;
     }
-    return `<div class="slot"><div class="what"><b>${label} · ${esc(name(s.claimedBy))}</b></div>
+    return `<div class="slot"><div class="what"><b>${label}${dcLabel} · ${esc(name(s.claimedBy))}</b></div>
       ${isPast ? '' : `<div class="acts"><button class="link" data-act="ask-remove" data-key="${esc(ck)}">Remove</button></div>`}</div>`;
+  }
+
+  function daycareBlock(d, dd, isPast){
+    const dc = dd.daycare; if (!dc) return '';
+    const attrs = `data-date="${esc(d.date)}" data-dog="${esc(dd.dog)}"`;
+    const ck = d.date + '|' + dd.dog + '|pickup';
+    const what = dc.cancelled === 1 ? (dc.slot === 1 ? '2nd let-out' : 'Last let-out') : dc.cancelled + ' later let-outs';
+    const note = dc.cancelled ? `<p class="note">${esc(what)} not needed · at day care</p>` : '';
+    const pu = dc.pickup;
+    let row;
+    if (!pu.claimedBy){
+      const free = pu.free.filter(id => id !== S.me).map(name), meFree = pu.free.includes(S.me);
+      row = `<div class="slot open"><div class="what"><b>Day care pickup · needs someone</b><small>${free.length || meFree ? 'Free: ' + esc((meFree ? ['You'] : []).concat(free).join(', ')) : 'Nobody listed as free'}</small></div>
+        ${isPast ? '' : `<div class="acts"><button class="btn small" data-act="pu-claim" ${attrs}>I’ll pick up</button></div>`}</div>`;
+    } else if (pu.claimedBy === S.me){
+      row = `<div class="slot mine"><div class="what"><b>Day care pickup · you</b></div>
+        ${isPast ? '' : `<div class="acts"><button class="btn small quiet" data-act="pu-unclaim" ${attrs}>Can’t do it</button></div>`}</div>`;
+    } else if (S.confirm === ck){
+      row = `<div class="slot"><div class="what"><b>Take ${esc(name(pu.claimedBy))} off pickup?</b><small>It will show as needing someone.</small></div>
+        <div class="acts"><button class="btn small" data-act="pu-unclaim" ${attrs}>Remove</button><button class="link" data-act="keep">Keep</button></div></div>`;
+    } else {
+      row = `<div class="slot"><div class="what"><b>Day care pickup · ${esc(name(pu.claimedBy))}</b></div>
+        ${isPast ? '' : `<div class="acts"><button class="link" data-act="ask-remove" data-key="${esc(ck)}">Remove</button></div>`}</div>`;
+    }
+    return note + row;
   }
 
   function hoursView(W){
@@ -332,10 +372,11 @@ details.past .days{margin-top:8px;opacity:.7}
   }
 
   // ---------- events ----------
-  function findSlot(date, dog, slot){
-    for (const w of S.data.weeks) for (const d of w.days) if (d.date === date){ const dd = d.dogs.find(x => x.dog === dog); return dd && dd.slots.find(s => s.n === slot); }
+  function findDog(date, dog){
+    for (const w of S.data.weeks) for (const d of w.days) if (d.date === date) return d.dogs.find(x => x.dog === dog) || null;
     return null;
   }
+  function findSlot(date, dog, slot){ const dd = findDog(date, dog); return dd && dd.slots.find(s => s.n === slot); }
 
   $app.addEventListener('submit', e => {
     if (e.target.id !== 'lockform') return;
@@ -356,9 +397,21 @@ details.past .days{margin-top:8px;opacity:.7}
     else if (act === 'claim' || act === 'unclaim'){
       const date = b.dataset.date, dog = b.dataset.dog, slot = +b.dataset.slot;
       const s = findSlot(date, dog, slot); const person = act === 'claim' ? S.me : null;
-      if (s) s.claimedBy = person;
+      const wasDc = !!(s && s.daycare);
+      if (s){ s.claimedBy = person; if (wasDc){ s.daycare = false; const dd = findDog(date, dog); if (dd) dd.daycare = null; } }
       S.confirm = null; render();
-      save('claim', {date, dog, slot, person}, act === 'claim' ? 'Claimed. Thank you!' : 'Removed. It shows as needing someone.');
+      save('claim', {date, dog, slot, person}, act === 'claim' ? 'Claimed. Thank you!' : wasDc ? 'Removed. The day care plan is cleared too.' : 'Removed. It shows as needing someone.');
+    }
+    else if (act === 'dc-on' || act === 'dc-off'){
+      b.disabled = true;
+      save('daycare', {date: b.dataset.date, dog: b.dataset.dog, slot: +b.dataset.slot, on: act === 'dc-on'},
+        act === 'dc-on' ? 'Day care drop-off saved. Pickup added.' : 'Day care removed. Let-outs are back.');
+    }
+    else if (act === 'pu-claim' || act === 'pu-unclaim'){
+      const date = b.dataset.date, dog = b.dataset.dog, person = act === 'pu-claim' ? S.me : null;
+      const dd = findDog(date, dog); if (dd && dd.daycare) dd.daycare.pickup.claimedBy = person;
+      S.confirm = null; render();
+      save('pickup', {date, dog, person}, person ? 'You’re picking up. Thank you!' : 'Removed. Pickup needs someone.');
     }
     else if (act === 'ask-remove'){ S.confirm = b.dataset.key; render(); }
     else if (act === 'keep'){ S.confirm = null; render(); }
