@@ -14,6 +14,7 @@
  *   Hours    one-off hours for a specific date (0 = off)
  *   Claims   who claimed which let-out
  *   Counts   let-out counts set by hand for a specific date
+ *   Daycare  day care drop-offs (which let-out drops the dog off) and who picks up
  *   Coverage this week and next, one row per let-out (rebuilt on every change and nightly)
  */
 
@@ -28,6 +29,7 @@ const HEADERS = {
   Hours:    ['date', 'person', 'hours', 'updated'],
   Claims:   ['date', 'dog', 'slot', 'person', 'updated'],
   Counts:   ['date', 'dog', 'letouts', 'updated'],
+  Daycare:  ['date', 'dog', 'slot', 'pickup', 'updated'],
   Coverage: ['Date', 'Day', 'Dog', 'House', 'Let-out', 'Status', 'Claimed by', 'Note']
 };
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -105,6 +107,8 @@ function doPost(e) {
       if (req.action === 'setHours') setHours(req);
       else if (req.action === 'claim') setClaim(req);
       else if (req.action === 'setCount') setCount(req);
+      else if (req.action === 'daycare') setDaycare(req);
+      else if (req.action === 'pickup') setPickup(req);
       else return json({ok: false, error: 'unknown_action'});
       SpreadsheetApp.flush();
       rebuildCoverage();
@@ -144,7 +148,12 @@ function setClaim(req) {
   if (!readDogs().some(function (d) { return d.id === dog; })) throw new Error('Unknown dog');
   if (!(slot >= 1 && slot <= 6)) throw new Error('Bad let-out number');
   const keys = {date: date, dog: dog, slot: slot};
-  if (!req.person) return removeRows('Claims', keys);
+  if (!req.person) {
+    removeRows('Claims', keys);
+    // If this let-out was the day care drop-off, the plan is off too, so the cancelled let-outs come back.
+    removeRows('Daycare', keys);
+    return;
+  }
   if (!readPeople().some(function (p) { return p.id === req.person; })) throw new Error('Unknown person');
   upsert('Claims', keys, {person: String(req.person), updated: stamp()});
 }
@@ -159,7 +168,41 @@ function setCount(req) {
   upsert('Counts', keys, {letouts: n, updated: stamp()});
 }
 
-function sheet(name) { return book().getSheetByName(name); }
+function daycareRow(date, dog) {
+  return rows('Daycare').filter(function (r) { return cellStr(r.date) === date && cellStr(r.dog) === dog; })[0] || null;
+}
+
+function setDaycare(req) {
+  const date = checkDate(req.date), dog = String(req.dog || '');
+  if (!readDogs().some(function (d) { return d.id === dog; })) throw new Error('Unknown dog');
+  const keys = {date: date, dog: dog};
+  if (!req.on) return removeRows('Daycare', keys);
+  const slot = Number(req.slot);
+  if (!(slot >= 1 && slot <= 6)) throw new Error('Bad let-out number');
+  const existing = daycareRow(date, dog);
+  upsert('Daycare', keys, {slot: slot, pickup: existing ? cellStr(existing.pickup) : '', updated: stamp()});
+}
+
+function setPickup(req) {
+  const date = checkDate(req.date), dog = String(req.dog || '');
+  const existing = daycareRow(date, dog);
+  if (!existing) throw new Error('No day care drop-off that day');
+  if (req.person && !readPeople().some(function (p) { return p.id === req.person; })) throw new Error('Unknown person');
+  upsert('Daycare', {date: date, dog: dog}, {slot: Number(existing.slot), pickup: req.person ? String(req.person) : '', updated: stamp()});
+}
+
+function sheet(name) {
+  const ss = book();
+  let sh = ss.getSheetByName(name);
+  if (!sh && HEADERS[name]) {                                        // tabs added after setup() appear on first use
+    const cov = ss.getSheetByName('Coverage');
+    sh = ss.insertSheet(name, cov ? cov.getIndex() - 1 : ss.getSheets().length);
+    sh.getRange(1, 1, 1, HEADERS[name].length).setValues([HEADERS[name]]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange('A:A').setNumberFormat('@');
+  }
+  return sh;
+}
 function cellStr(v) {
   if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
   return String(v === null || v === undefined ? '' : v).trim();
@@ -233,7 +276,8 @@ function snapshot() {
     dogs: readDogs(),
     hours: rows('Hours').map(function (r) { return {date: cellStr(r.date), person: cellStr(r.person), hours: Number(r.hours)}; }),
     claims: rows('Claims').map(function (r) { return {date: cellStr(r.date), dog: cellStr(r.dog), slot: Number(r.slot), person: cellStr(r.person)}; }),
-    counts: rows('Counts').map(function (r) { return {date: cellStr(r.date), dog: cellStr(r.dog), letouts: Number(r.letouts)}; })
+    counts: rows('Counts').map(function (r) { return {date: cellStr(r.date), dog: cellStr(r.dog), letouts: Number(r.letouts)}; }),
+    daycare: rows('Daycare').map(function (r) { return {date: cellStr(r.date), dog: cellStr(r.dog), slot: Number(r.slot), pickup: cellStr(r.pickup)}; })
   });
 }
 
@@ -244,6 +288,7 @@ function buildPlan(src) {
   const hoursMap = {}; src.hours.forEach(function (h) { hoursMap[h.date + '|' + h.person] = h.hours; });
   const claimMap = {}; src.claims.forEach(function (c) { claimMap[c.date + '|' + c.dog + '|' + c.slot] = c.person; });
   const countMap = {}; src.counts.forEach(function (c) { countMap[c.date + '|' + c.dog] = c.letouts; });
+  const dcMap = {}; (src.daycare || []).forEach(function (c) { dcMap[c.date + '|' + c.dog] = c; });
   const nm = function (id) { return byId[id] ? byId[id].name : id; };
   const joinNames = function (ids) { const n = ids.map(nm); return n.length < 3 ? n.join(' and ') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]; };
 
@@ -284,7 +329,16 @@ function buildPlan(src) {
     for (let k = 1; k <= (needed || 0); k++) {
       slots.push({n: k, claimedBy: claimMap[date + '|' + d.id + '|' + k] || null, free: freeFor(d, owners, date, k)});
     }
-    return {dog: d.id, state: state, needed: needed, reason: reason, overridden: overridden, slots: slots};
+    // Day care: the drop-off let-out stays, later let-outs that day are cancelled, and a pickup task is added.
+    let daycare = null;
+    const dc = dcMap[date + '|' + d.id];
+    if (dc && dc.slot >= 1 && dc.slot <= slots.length && slots[dc.slot - 1].claimedBy) {
+      const cancelled = slots.length - dc.slot;
+      slots.length = dc.slot;
+      slots[dc.slot - 1].daycare = true;
+      daycare = {slot: dc.slot, cancelled: cancelled, pickup: {claimedBy: dc.pickup || null, free: freeFor(d, owners, date, 2)}};
+    }
+    return {dog: d.id, state: state, needed: needed, reason: reason, overridden: overridden, slots: slots, daycare: daycare};
   }
 
   function freeFor(d, owners, date, k) {
@@ -339,12 +393,21 @@ function coverageRows(plan) {
           unknown++;
           out.push([day.date, day.day, dog.name, dog.house, '', 'HOURS NOT ENTERED', '', dd.reason]);
         }
+        const freeNote = function (free) { return free.length ? 'Free: ' + free.map(function (id) { return names[id] || id; }).join(', ') : 'Nobody listed as free'; };
         dd.slots.forEach(function (s) {
           if (!s.claimedBy) unclaimed++;
-          out.push([day.date, day.day, dog.name, dog.house, s.n + ' of ' + dd.needed,
+          const dropNote = s.daycare ? (dd.daycare.cancelled ? 'Day care drop-off; rest of day at day care' : 'Day care drop-off') : '';
+          out.push([day.date, day.day, dog.name, dog.house, s.n + ' of ' + dd.needed + (s.daycare ? ' + day care drop-off' : ''),
             s.claimedBy ? 'Claimed' : 'UNCLAIMED', s.claimedBy ? (names[s.claimedBy] || s.claimedBy) : '',
-            s.claimedBy ? '' : (s.free.length ? 'Free: ' + s.free.map(function (id) { return names[id] || id; }).join(', ') : 'Nobody listed as free')]);
+            s.claimedBy ? dropNote : freeNote(s.free)]);
         });
+        if (dd.daycare) {
+          const pu = dd.daycare.pickup;
+          if (!pu.claimedBy) unclaimed++;
+          out.push([day.date, day.day, dog.name, dog.house, 'Day care pickup',
+            pu.claimedBy ? 'Claimed' : 'UNCLAIMED', pu.claimedBy ? (names[pu.claimedBy] || pu.claimedBy) : '',
+            pu.claimedBy ? '' : freeNote(pu.free)]);
+        }
       });
     });
   });
